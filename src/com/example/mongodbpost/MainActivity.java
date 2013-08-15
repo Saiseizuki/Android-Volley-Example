@@ -6,13 +6,13 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-
 import org.apache.http.NameValuePair;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.message.BasicNameValuePair;
+
+import com.actionbarsherlock.app.SherlockActivity;
+import com.actionbarsherlock.view.Menu;
 
 import android.app.Activity;
 import android.content.ComponentName;
@@ -26,21 +26,13 @@ import android.os.Message;
 import android.os.Messenger;
 import android.os.RemoteException;
 import android.util.Log;
-import android.view.Menu;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
 
-import com.android.volley.Request;
-import com.android.volley.RequestQueue;
-import com.android.volley.Response;
-import com.android.volley.VolleyError;
-import com.android.volley.toolbox.StringRequest;
-import com.android.volley.toolbox.Volley;
-
-public class MainActivity extends Activity {
+public class MainActivity extends SherlockActivity {
 
 	Button send, get, send_volley, get_volley;
 	EditText name_field, email_field, regid_field;
@@ -58,10 +50,12 @@ public class MainActivity extends Activity {
 					+ " ->  " + what);
 			switch (what) {
 			case MainService.GET_SUCCESS:
-				Toast.makeText(context, response, Toast.LENGTH_SHORT).show();
+				Toast.makeText(context, "Get success: " + response,
+						Toast.LENGTH_SHORT).show();
 				break;
 			case MainService.POST_SUCCESS:
-				Toast.makeText(context, response, Toast.LENGTH_SHORT).show();
+				Toast.makeText(context, "Post success: " + response,
+						Toast.LENGTH_SHORT).show();
 				break;
 			default:
 				break;
@@ -106,22 +100,37 @@ public class MainActivity extends Activity {
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 		// Inflate the menu; this adds items to the action bar if it is present.
-		getMenuInflater().inflate(R.menu.main, menu);
+		getSupportMenuInflater().inflate(R.menu.main, menu);
 		return true;
 	}
 
 	@Override
 	protected void onStart() {
 		super.onStart();
-		bindService(new Intent(this, MainService.class), mConnection,
-				BIND_AUTO_CREATE);
+		if (!MainService.isServiceRunning()) {
+			startService(new Intent(this, MainService.class));
+			bindService(new Intent(this, MainService.class), mConnection,
+					BIND_AUTO_CREATE);
+		}
+
 	}
 
 	@Override
 	protected void onStop() {
 		super.onStop();
 		if (mBound) {
+			if (mService != null) {
+				try {
+					Message msg = Message
+							.obtain(null, MainService.UNREG_CLIENT);
+					msg.replyTo = mMessenger;
+					mService.send(msg);
+				} catch (RemoteException e) {
+					e.printStackTrace();
+				}
+			}
 			unbindService(mConnection);
+			stopService(new Intent(getBaseContext(), MainService.class));
 			mBound = false;
 		}
 	}
@@ -355,7 +364,5 @@ public class MainActivity extends Activity {
 		});
 
 	}
-
-	
 
 }

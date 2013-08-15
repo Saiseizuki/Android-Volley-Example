@@ -29,10 +29,16 @@ public class MainService extends Service {
 	static final int GET_FAIL = 3;
 	static final int POST_SUCCESS = 4;
 	static final int POST_FAIL = 5;
+	private static MainService instance = null;
 
 	static final int REG_CLIENT = 100;
+	static final int UNREG_CLIENT = 101;
 	static Context context;
 	ArrayList<Messenger> mClients = new ArrayList<Messenger>();
+
+	public static boolean isServiceRunning() {
+		return instance != null;
+	}
 
 	class IncomingHandler extends Handler {
 		@Override
@@ -40,17 +46,21 @@ public class MainService extends Service {
 			switch (msg.what) {
 			case REG_CLIENT:
 				mClients.add(msg.replyTo);
-				Log.d("MONGODB","Client added!!!");
+				Log.d("MONGODB", "Client added!!!");
+				break;
+			case UNREG_CLIENT:
+				mClients.remove(msg.replyTo);
+				Log.d("MONGODB", "Client removed!!!");
 				break;
 			case GET:
 				Toast.makeText(context, "Tesutooo!", Toast.LENGTH_SHORT).show();
 				volleyGet();
 				break;
 			case POST:
-				String name = ((Entry)msg.obj).name;
-				String email = ((Entry)msg.obj).email;
-				String regid = ((Entry)msg.obj).regid;
-				volleyPost(name,email,regid);
+				String name = ((Entry) msg.obj).name;
+				String email = ((Entry) msg.obj).email;
+				String regid = ((Entry) msg.obj).regid;
+				volleyPost(name, email, regid);
 				break;
 			default:
 				super.handleMessage(msg);
@@ -60,25 +70,16 @@ public class MainService extends Service {
 
 	final Messenger mMessenger = new Messenger(new IncomingHandler());
 
-	// @Override
-	// public int onStartCommand(Intent intent,int flags,int startId)
-	// {
-	// this.context = this;
-	// if(flags == GET){
-	// volleyGet();
-	// }
-	//
-	// if(flags == POST){
-	// String name = intent.getStringExtra("name");
-	// String email = intent.getStringExtra("email");
-	// String regid = intent.getStringExtra("regid");
-	//
-	// }
-	//
-	//
-	//
-	// return START_NOT_STICKY;
-	// }
+	@Override
+	public void onCreate() {
+		instance = this;
+	}
+
+	@Override
+	public int onStartCommand(Intent intent, int flags, int startId) {
+		return START_STICKY;
+	}
+
 	@Override
 	public IBinder onBind(Intent intent) {
 		// TODO Auto-generated method stub
@@ -118,8 +119,9 @@ public class MainService extends Service {
 		Log.d("MONGODB", "Added request");
 
 	}
-	
-	private void volleyPost(final String name,final String email,final String regid){
+
+	private void volleyPost(final String name, final String email,
+			final String regid) {
 		RequestQueue queue = Volley.newRequestQueue(context);
 		StringRequest myReq = new StringRequest(Request.Method.POST,
 				"http://10.0.2.2:8080/add_user",
@@ -128,9 +130,9 @@ public class MainService extends Service {
 					@Override
 					public void onResponse(String response) {
 						// TODO Auto-generated method stub
-//						Toast.makeText(context,
-//								"Response => " + response.toString(),
-//								Toast.LENGTH_SHORT).show();
+						// Toast.makeText(context,
+						// "Response => " + response.toString(),
+						// Toast.LENGTH_SHORT).show();
 						responseToClientPost(response);
 					}
 				}, new Response.ErrorListener() {
@@ -144,12 +146,13 @@ public class MainService extends Service {
 					}
 				}) {
 
+			@Override
 			protected Map<String, String> getParams()
 					throws com.android.volley.AuthFailureError {
 				Map<String, String> params = new HashMap<String, String>();
-//				String name = name_field.getText().toString();
-//				String email = email_field.getText().toString();
-//				String regid = regid_field.getText().toString();
+				// String name = name_field.getText().toString();
+				// String email = email_field.getText().toString();
+				// String regid = regid_field.getText().toString();
 				params.put("name", name);
 				params.put("email", email);
 				params.put("regid", regid);
@@ -160,7 +163,7 @@ public class MainService extends Service {
 	}
 
 	private void responseToClientGet(Object response) {
-		Log.d("MONGODB", "-- mClients size is "+  mClients.size());
+		Log.d("MONGODB", "-- mClients size is " + mClients.size());
 		for (int i = 0; i < mClients.size(); i++) {
 			try {
 				Message msg = Message.obtain(null, GET_SUCCESS);
@@ -175,9 +178,9 @@ public class MainService extends Service {
 		}
 
 	}
-	
+
 	private void responseToClientPost(Object response) {
-		Log.d("MONGODB", "-- mClients size is "+  mClients.size());
+		Log.d("MONGODB", "-- mClients size is " + mClients.size());
 		for (int i = 0; i < mClients.size(); i++) {
 			try {
 				Message msg = Message.obtain(null, POST_SUCCESS);
@@ -196,6 +199,21 @@ public class MainService extends Service {
 	@Override
 	public void onDestroy() {
 		super.onDestroy();
+		instance = null;
+		Log.d("MONGODB", "SHIT MAN IM DESTROYED");
 	}
+
+	// public boolean isMyServiceRunning() {
+	// ActivityManager manager =
+	// (ActivityManager)getSystemService(Context.ACTIVITY_SERVICE);
+	// for (RunningServiceInfo service : manager
+	// .getRunningServices(Integer.MAX_VALUE)) {
+	// if (MainService.class.getName().equals(
+	// service.service.getClassName())) {
+	// return true;
+	// }
+	// }
+	// return false;
+	// }
 
 }
